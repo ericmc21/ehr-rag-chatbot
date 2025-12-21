@@ -1,0 +1,31 @@
+# Secrets and keys
+.env
+*.pem
+private_key.*
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data
+*.db
+*.sqlite
+data/
+chroma_db/
+
+# OS
+.DS_Store
+Thumbs.db

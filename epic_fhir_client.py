@@ -197,6 +197,9 @@ class EpicFHIRClient:
         if category:
             params["category"] = category
             print(f"Filtering by category: {category}")
+        else:
+            params["category"] = "vital-signs,laboratory"
+            print(f" Using default categories: vital-signs, laboratory")
 
         entries = self._fetch_with_pagination("Observation", patient_id, params)
         observations = [entry["resource"] for entry in entries]

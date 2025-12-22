@@ -28,7 +28,7 @@ class EpicFHIRClient:
 
         # Rate limiting: Epic typically allows ~10-20 requests per second
         self.min_request_interval = 0.1  # 10 requests per second
-        self.last_request_time: 0
+        self.last_request_time = 0
 
     def _wait_for_rate_limit(self):
         """
@@ -66,7 +66,7 @@ class EpicFHIRClient:
             response.raise_for_status()
             return response.json()
 
-        except requests.excepts.HTTPError as e:
+        except requests.exceptions.HTTPError as e:
             if e.response.status_code == 429:
                 # Handle rate limiting response
                 print("Rate limit exceeded, retrying after 2 second delay...")
@@ -79,7 +79,7 @@ class EpicFHIRClient:
             print(f"X Request failed: {e}")
             raise
 
-    def fetch_with_pagination(
+    def _fetch_with_pagination(
         self, resource_type: str, patient_id: str, params: Optional[Dict] = None
     ) -> List[Dict]:
         """
@@ -131,53 +131,141 @@ class EpicFHIRClient:
                     break
         return all_entries
 
+    def get_patient(self, patient_id: str) -> Dict:
+        """
+        Fetch patient demographic information
 
-def get_patient(self, patient_id: str) -> Dict:
+        Args:
+            patient_id: Patient ID
+
+        Returns:
+            Patient resource
+        """
+        print(f"\n Fetching Patient resource for {patient_id}...")
+        url = f"{self.base_url}/Patient/{patient_id}"
+        patient = self._make_request(url)
+        print(f"Got patient: {patient.get('name', [{}])[0].get('text', 'Unknown')}")
+        return patient
+
+    def get_conditions(self, patient_id: str) -> List[Dict]:
+        """
+        Fetch all Condition resources for a patient
+
+        Args:
+            patient_id: Patient ID
+
+        Returns:
+            List of Condition resources
+        """
+        print(f"\n Fetching Condition resources for patient {patient_id}...")
+        entries = self._fetch_with_pagination("Condition", patient_id)
+        conditions = [entry["resource"] for entry in entries]
+        print(f"Retrieved {len(conditions)} conditions.")
+        return conditions
+
+    def get_medications(self, patient_id: str) -> List[Dict]:
+        """
+        Fetch all MedicationRequest resources for a patient
+
+        Args:
+            patient_id: Patient ID
+
+        Returns:
+            List of MedicationRequest resources
+        """
+        print(f"\n Fetching MedicationRequest resources for patient {patient_id}...")
+        entries = self._fetch_with_pagination("MedicationRequest", patient_id)
+        medications = [entry["resource"] for entry in entries]
+        print(f"Retrieved {len(medications)} medication requests.")
+        return medications
+
+    def get_observations(
+        self, patient_id: str, category: Optional[str] = None
+    ) -> List[Dict]:
+        """
+        Fetch all Observation resources for a patient, optionally filtered by category
+
+        Args:
+            patient_id: Patient ID
+            category: Optional observation category (e.g., "vital-signs", "laboratory")
+
+        Returns:
+            List of Observation resources
+        """
+        print(f"\n Fetching Observation resources for patient {patient_id}...")
+        params = {}
+        if category:
+            params["category"] = category
+            print(f"Filtering by category: {category}")
+
+        entries = self._fetch_with_pagination("Observation", patient_id, params)
+        observations = [entry["resource"] for entry in entries]
+        print(f"Retrieved {len(observations)} observations.")
+        return observations
+
+    def get_all_patient_data(self, patient_id: str) -> Dict[str, Any]:
+        """
+        Fetch all relevant FHIR resources for a patient
+
+        Args:
+            patient_id: Patient ID
+        Returns:
+            Dictionary containing all patient data organized by resource type
+        """
+        print("=" * 60)
+        print(f"Fetching all data for patient {patient_id}")
+        print("=" * 60)
+
+        data = {
+            "patient_id": patient_id,
+            "patient": self.get_patient(patient_id),
+            "conditions": self.get_conditions(patient_id),
+            "medications": self.get_medications(patient_id),
+            "observations": self.get_observations(patient_id),
+        }
+
+        print("\n" + "=" * 60)
+        print(" Data fetch complete!")
+        print("=" * 60)
+        print(f"Patient: {data["patient"].get("name", [{}])[0].get("text", "Unknown")}")
+        print(f"Conditions: {len(data["conditions"])}")
+        print(f"Medications: {len(data["medications"])}")
+        print(f"Observations: {len(data["observations"])}")
+        print("=" * 60)
+
+        return data
+
+
+def test_fhir_client():
     """
-    Fetch patient demographic information
+    Test the FHIR client with a test patient
 
-    Args:
-        patient_id: Patient ID
-
-    Returns:
-        Patient resource
     """
-    print(f"\n Fetching Patient resource for {patient_id}...")
-    url = f"{self.base_url}/Patient/{patient_id}"
-    patient = self._make_request(url)
-    print(f"Got patient: {patient.get('name', [{}])[0].get('text', 'Unknown')}")
-    return patient
+    test_patient_id = os.getenv("TEST_PATIENT_ID", "example-patient-id")
+    try:
+        client = EpicFHIRClient()
+
+        # Fetch all data for the test patient
+        patient_data = client.get_all_patient_data(test_patient_id)
+
+        # Display sample condition
+        if patient_data["conditions"]:
+            print("\n Sample Condition:")
+            condition = patient_data["conditions"][0]
+            code = condition.get("code", {}).get("coding", [{}])[0]
+            print(f"- {code.get('display', 'Unknown Condition')}")
+
+        # Display sample medication
+        if patient_data["medications"]:
+            print("\n Sample Medication:")
+            med = patient_data["medications"][0]
+            med_code = med.get("medicationCodeableConcept", {}).get("coding", [{}])[0]
+            print(f"- {code.get('display', 'Unknown Medication')}")
+
+    except Exception as e:
+        print(f"\n X Test failed: {e}")
+        raise
 
 
-def get_conditions(self, patient_id: str) -> List[Dict]:
-    """
-    Fetch all Condition resources for a patient
-
-    Args:
-        patient_id: Patient ID
-
-    Returns:
-        List of Condition resources
-    """
-    print(f"\n Fetching Condition resources for patient {patient_id}...")
-    entries = self.fetch_with_pagination("Condition", patient_id)
-    conditions = [entry["resource"] for entry in entries]
-    print(f"Retrieved {len(conditions)} conditions.")
-    return conditions
-
-
-def get_medications(self, patient_id: str) -> List[Dict]:
-    """
-    Fetch all MedicationRequest resources for a patient
-
-    Args:
-        patient_id: Patient ID
-
-    Returns:
-        List of MedicationRequest resources
-    """
-    print(f"\n Fetching MedicationRequest resources for patient {patient_id}...")
-    entries = self.fetch_with_pagination("MedicationRequest", patient_id)
-    medications = [entry["resource"] for entry in entries]
-    print(f"Retrieved {len(medications)} medication requests.")
-    return medications
+if __name__ == "__main__":
+    test_fhir_client()

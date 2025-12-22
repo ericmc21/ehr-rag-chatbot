@@ -147,3 +147,37 @@ def get_patient(self, patient_id: str) -> Dict:
     patient = self._make_request(url)
     print(f"Got patient: {patient.get('name', [{}])[0].get('text', 'Unknown')}")
     return patient
+
+
+def get_conditions(self, patient_id: str) -> List[Dict]:
+    """
+    Fetch all Condition resources for a patient
+
+    Args:
+        patient_id: Patient ID
+
+    Returns:
+        List of Condition resources
+    """
+    print(f"\n Fetching Condition resources for patient {patient_id}...")
+    entries = self.fetch_with_pagination("Condition", patient_id)
+    conditions = [entry["resource"] for entry in entries]
+    print(f"Retrieved {len(conditions)} conditions.")
+    return conditions
+
+
+def get_medications(self, patient_id: str) -> List[Dict]:
+    """
+    Fetch all MedicationRequest resources for a patient
+
+    Args:
+        patient_id: Patient ID
+
+    Returns:
+        List of MedicationRequest resources
+    """
+    print(f"\n Fetching MedicationRequest resources for patient {patient_id}...")
+    entries = self.fetch_with_pagination("MedicationRequest", patient_id)
+    medications = [entry["resource"] for entry in entries]
+    print(f"Retrieved {len(medications)} medication requests.")
+    return medications

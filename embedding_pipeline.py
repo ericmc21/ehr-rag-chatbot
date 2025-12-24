@@ -218,3 +218,40 @@ class FHIREmbeddingPipeline:
         print("=" * 60)
 
         return len(documents)
+    def search(self, query: str, n_results: int = 5, patient_id: Optional[str]) -> Dict:
+        """
+        Search for relevant documents in ChromaDB
+
+        Args:
+            query: Search query text
+            n_results: Number of results to return
+            patient_id: Filter results by patient ID
+
+        Returns:
+            Search results from ChromaDB
+        """
+        # Generate embedding for the query
+        query_embedding = self.generate_embedding(query)
+
+        # Build where filter
+        where_filter = None
+        if patient_id:
+            where_filter = {"patient_id": patient_id}
+        
+        # Search
+        results = self.collection.query(query_embeddings=[query_embedding],n_results=n_results,where=where_filter)
+        return results
+    
+    def get_collection_stats(self) -> Dict:
+        """
+        Get statistics about the ChromaDB collection
+
+        Returns:
+            Collection statistics
+        """
+        count = self.collection.count()
+        return {
+            "total_documents": count,
+            "collection_name": self.collection.name,
+        }
+        

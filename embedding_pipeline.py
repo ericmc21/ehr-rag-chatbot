@@ -75,7 +75,7 @@ class FHIRDocumentProcessor:
         return text
 
 
-class FHIREmbeddingPipeline:
+class EmbeddingPipeline:
     """
     Generates embeddings and stores in ChromaDB
     """
@@ -255,3 +255,64 @@ class FHIREmbeddingPipeline:
             "collection_name": self.collection.name,
         }
         
+def test_embedding_pipeline():
+    """
+    Test the FHIREmbeddingPipeline with sample data
+    """
+    from epic_fhir_client import EpicFHIRClient
+
+    print("=" * 60)
+    print(" Testing FHIREmbeddingPipeline ")
+    print("=" * 60)
+
+    # Check for OpenAI API key
+    if not os.getenv("OPENAI_API_KEY"):
+        print("Error: OPENAI_API_KEY not found in .env file.")
+        print("Please set the API key and try again.")
+        return
+    
+    # Get test patient data
+    test_patient_id = os.getenv("TEST_PATIENT_ID", "example-patient-id")
+
+    try:
+        print("\n1. Fetching patient data from Epic FHIR...")
+        fhir_client = EpicFHIRClient()
+        patient_data = fhir_client.get_all_patient_data(test_patient_id)
+
+        # Initialize embedding pipeline
+        print("\n2. Initializing FHIREmbeddingPipeline...")
+        pipeline = EmbeddingPipeline()
+
+        # Index the data
+        print("\n3. Indexing patient data...")
+        num_docs = pipeline.index_patient_data(patient_data)
+
+        # Test search
+        print("\n4. Testing search functionality...")
+        query = "What conditions does the patient have?"
+        print(f"\n Searching for: {query} ")
+
+        results = pipeline.search(query, n_results=3, patient_id=test_patient_id)
+
+        print("\n Search Results: ")
+        for i, doc in enumerate(results["documents"][0]):
+            metadata = results["metadatas"][0][i]
+            print(f"\n{i+1}. {metadata["resource_type"]}:")
+            print(f". {doc[:100]}...")  # Print first 100 characters
+
+        # Show collection stats
+        stats = pipeline.get_collection_stats()
+        print("\n Collection Stats: ")
+        print(f" Total Documents Indexed: {stats["total_documents"]} ")
+
+        print("\n" + "=" * 60)
+        print(" Embedding pipeline test completed successfully! ")
+        print("=" * 60)
+
+    except Exception as e:
+        print(f"An error occurred during testing: {e}")
+        raise
+
+
+if __name__ == "__main__":
+    test_embedding_pipeline()

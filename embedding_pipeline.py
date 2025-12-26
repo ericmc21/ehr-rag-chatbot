@@ -5,7 +5,7 @@ Processes patient data, generates embeddings, and indexes in ChromaDB
 
 import os
 import json
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -33,7 +33,7 @@ class FHIRDocumentProcessor:
         return f"Patient: {name}\nGender: {gender} \nBirth Date: {birth_date}"
 
     @staticmethod
-    def process_conditions(condition: Dict) -> str:
+    def process_condition(condition: Dict) -> str:
         """
         Convert Condition resource to text
         """
@@ -48,6 +48,34 @@ class FHIRDocumentProcessor:
         text = f"Condition: {display}\n"
         text += f"Status: {clinical_status}\n"
         text += f"Onset Date: {onset}\n"
+
+        return text
+
+    @staticmethod
+    def process_medication(medication: Dict) -> str:
+        """
+        Convert MedicationRequest resource to text
+        """
+        med_code = medication.get("medicationCodeableConcept", {})
+        coding = med_code.get("coding", [{}])[0]
+        display = coding.get("display", "Unknown Medication")
+
+        status = medication.get("status", "Unknown Status")
+        authored = medication.get("authoredOn", "Unknown Date")
+
+        # Get dosage if available
+        dosage_instructions = medication.get("dosageInstruction", [])
+        dosage_text = (
+            dosage_instructions[0].get("text", "No dosage instructions")
+            if dosage_instructions
+            else "No dosage instructions"
+        )
+
+        text = f"Medication: {display}\n"
+        text += f"Status: {status}\n"
+        text += f"Prescribed On: {authored}\n"
+        if dosage_text:
+            text += f"Dosage Instructions: {dosage_text}\n"
 
         return text
 
@@ -107,7 +135,7 @@ class EmbeddingPipeline:
         Returns:
             Embedding vector
         """
-        response = self.opoenai_client.embeddings.create(
+        response = self.openai_client.embeddings.create(
             model="text-embedding-3-small", input=text
         )
         return response.data[0].embedding
@@ -148,7 +176,7 @@ class EmbeddingPipeline:
         # Process conditions
         print(f"\n Processing {len(patient_data["conditions"])} conditions.")
         for idx, condition in enumerate(patient_data["conditions"]):
-            condition_text = self.processor.process_conditions(condition)
+            condition_text = self.processor.process_condition(condition)
             documents.append(condition_text)
 
             condition_id = condition.get("id", f"condition_{idx}")
@@ -205,8 +233,9 @@ class EmbeddingPipeline:
         for i, doc in enumerate(documents):
             if i % 10 == 0:
                 print(f"  Progress: {i}/{len(documents)} ")
-                embedding = self.generate_embedding(doc)
-                embeddings.append(embedding)
+
+            embedding = self.generate_embedding(doc)
+            embeddings.append(embedding)
 
         print("Adding documents to ChromaDB collection...")
         self.collection.add(
@@ -218,7 +247,10 @@ class EmbeddingPipeline:
         print("=" * 60)
 
         return len(documents)
-    def search(self, query: str, n_results: int = 5, patient_id: Optional[str]) -> Dict:
+
+    def search(
+        self, query: str, n_results: int = 5, patient_id: Optional[str] = None
+    ) -> Dict:
         """
         Search for relevant documents in ChromaDB
 
@@ -237,11 +269,13 @@ class EmbeddingPipeline:
         where_filter = None
         if patient_id:
             where_filter = {"patient_id": patient_id}
-        
+
         # Search
-        results = self.collection.query(query_embeddings=[query_embedding],n_results=n_results,where=where_filter)
+        results = self.collection.query(
+            query_embeddings=[query_embedding], n_results=n_results, where=where_filter
+        )
         return results
-    
+
     def get_collection_stats(self) -> Dict:
         """
         Get statistics about the ChromaDB collection
@@ -254,7 +288,8 @@ class EmbeddingPipeline:
             "total_documents": count,
             "collection_name": self.collection.name,
         }
-        
+
+
 def test_embedding_pipeline():
     """
     Test the FHIREmbeddingPipeline with sample data
@@ -270,7 +305,7 @@ def test_embedding_pipeline():
         print("Error: OPENAI_API_KEY not found in .env file.")
         print("Please set the API key and try again.")
         return
-    
+
     # Get test patient data
     test_patient_id = os.getenv("TEST_PATIENT_ID", "example-patient-id")
 

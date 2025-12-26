@@ -89,13 +89,15 @@ class PatientChatbot:
         response = self.openai_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            temperature=0.7
+            temperature=0.7,
             max_tokens=500,
         )
 
         return response.choices[0].message.content
-    
-    def chat(self, query: str, patient_id: str, conversation_history: List[Dict[str, str]]) -> tuple[str, str]:
+
+    def chat(
+        self, query: str, patient_id: str, conversation_history: List[Dict[str, str]]
+    ) -> tuple[str, str]:
         """
         Main chat function combining retrieval and generation
 
@@ -113,5 +115,22 @@ class PatientChatbot:
         response = self.generate_response(query, context, conversation_history)
 
         return response, context
-    
+
+
+def init_session_state():
+    """Initialize Streamlit session state"""
+    if "messages" not in st.session_state:
+        st.session_state.messages = []  # List of dicts with 'role' and 'content'
+    if "chatbot" not in st.session_state:
+        st.session_state.chatbot = PatientChatbot()
+    if "patient_id" not in st.session_state:
+        st.session_state.patient_id = os.getenv("TEST_PATIENT_ID", "example-patient-id")
+
+def display_chat_history():
+    """Display chat message history"""
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+def main():
     

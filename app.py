@@ -124,7 +124,10 @@ def init_session_state():
     if "chatbot" not in st.session_state:
         st.session_state.chatbot = PatientChatbot()
     if "patient_id" not in st.session_state:
-        st.session_state.patient_id = os.getenv("TEST_PATIENT_ID", "example-patient-id")
+        st.session_state.patient_id = os.getenv(
+            "TEST_PATIENT_ID", "eq081-VQEgP8drUUqCWzHfw3"
+        )
+
 
 def display_chat_history():
     """Display chat message history"""
@@ -132,5 +135,109 @@ def display_chat_history():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
+
 def main():
-    
+    """
+    Main Streamlit app function
+    """
+    st.set_page_config(page_title="EHR Patient Chatbot", page_icon="🏥", layout="wide")
+
+    # Initialize session state
+    init_session_state()
+
+    # Sidebar
+    with st.sidebar:
+        st.title("🏥 EHR Patient Chatbot")
+        st.markdown("---")
+
+        st.subheader("Configuration")
+
+        # Patient ID selector
+        patient_id = st.text_input(
+            "Patient ID",
+            value=st.session_state.patient_id,
+            help="Enter the patient ID to query",
+        )
+        st.session_state.patient_id = patient_id
+
+        # Collection stats
+        st.markdown("---")
+        st.subheader("📊 Database Stats")
+        try:
+            stats = st.session_state.chatbot.embedding_pipeline.get_collection_stats()
+            st.metric("Total Documents", stats["total_documents"])
+            st.metric("Collection", stats["collection_name"])
+        except Exception as e:
+            st.error(f"Failed to load database stats: {e}")
+
+        # Clear chat button
+        st.markdown("---")
+        if st.button("🗑️ Clear Chat History"):
+            st.session_state.messages = []
+            st.rerun()
+
+        # Info
+        st.markdown("---")
+        st.markdown(
+            """
+        ### How to use
+        1. Enter a patient ID (or use default)
+        2. Ask questions about the patient's:
+              - Medical sonditions
+              - Medications
+              - Observations (labs, vitals)
+              - General health information
+                    
+        ### Example Questions
+        - What conditions does this patient have?
+        - What medications is the patient taking?
+        - What were the most recent lab results?
+        - Summarize the patient's health status."""
+        )
+
+    # Main chat interface
+    st.title("💬 Chat with Patient Records")
+    st.markdown(f"**Current Patient:** `{st.session_state.patient_id}`")
+
+    # Display chat history
+    display_chat_history()
+
+    # Chat input
+    if prompt := st.chat_input("Ask a question about the patient's records..."):
+        # Add user message to chat
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # Generate response
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                try:
+                    response, context = st.session_state.chatbot.chat(
+                        query=prompt,
+                        patient_id=st.session_state.patient_id,
+                        conversation_history=st.session_state.messages,
+                    )
+                    st.markdown(response)
+
+                    # Show retrieved context in expander
+                    with st.expander("📋 View Retrieved Context"):
+                        st.text(context)
+
+                    # Add assistant response to chat history
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": response}
+                    )
+
+                except Exception as e:
+                    st.error(f"Error generating response: {e}")
+                    st.exception(e)
+
+
+if __name__ == "__main__":
+    # Check for required environment variables
+    if not os.getenv("OPENAI_API_KEY"):
+        st.error("❌ OPENAI_API_KEY not found in environment variables")
+        st.stop()
+    main()

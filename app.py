@@ -43,7 +43,7 @@ class PatientChatbot:
         context_parts = []
         for i, doc in enumerate(results["documents"][0]):
             metadata = results["metadatas"][0][i]
-            context_parts.append(f"[{metadata["resource_type"]}]\n{doc}\n")
+            context_parts.append(f"[{metadata['resource_type']}]\n{doc}\n")
 
         return "\n\n".join(context_parts)
 

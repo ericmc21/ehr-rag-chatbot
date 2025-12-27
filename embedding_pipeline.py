@@ -56,9 +56,8 @@ class FHIRDocumentProcessor:
         """
         Convert MedicationRequest resource to text
         """
-        med_code = medication.get("medicationCodeableConcept", {})
-        coding = med_code.get("coding", [{}])[0]
-        display = coding.get("display", "Unknown Medication")
+        med_ref = medication.get("medicationReference", {})
+        display = med_ref.get("display", "Unknown Medication")
 
         status = medication.get("status", "Unknown Status")
         authored = medication.get("authoredOn", "Unknown Date")
@@ -166,9 +165,9 @@ class EmbeddingPipeline:
         documents.append(patient_text)
         metadatas.append(
             {
-                "type": "patient",
                 "patient_id": patient_id,
-                "timestamp": datetime.utcnow().isoformat(),
+                "resource_type": "Patient",
+                "timestamp": datetime.now().isoformat(),
             }
         )
         ids.append(f"{patient_id}_patient")

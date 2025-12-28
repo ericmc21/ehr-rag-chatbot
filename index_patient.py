@@ -45,9 +45,11 @@ def index_patient(patient_id: str):
 def main():
     """Main function"""
     # Get patient ID from environment variable
-    patient_id = os.getenv("TEST_PATIENT_ID", "eq081-VQEgP8drUUqCWzHfw3")
+    patient_id_list = os.getenv("TEST_PATIENT_ID_LIST", "eq081-VQEgP8drUUqCWzHfw3")
+    # Index all patients
+    patient_ids = patient_id_list.split(",")
 
-    if not patient_id:
+    if not patient_id_list:
         print("❌ TEST_PATIENT_ID not found in .env file")
         print("\nPlease add to your .env:")
         print("TEST_PATIENT_ID=your_patient_id_here")
@@ -61,7 +63,8 @@ def main():
         return
 
     try:
-        index_patient(patient_id)
+        for patient_id in patient_ids:
+            index_patient(patient_id)
     except Exception as e:
         print(f"\n❌ Error: {e}")
         raise

@@ -195,16 +195,16 @@ class EmbeddingPipeline:
             med_text = self.processor.process_medication(medication)
             documents.append(med_text)
 
-        med_id = medication.get("id", f"medication_{idx}")
-        metadatas.append(
-            {
-                "patient_id": patient_id,
-                "resource_type": "MedicationRequest",
-                "resource_id": med_id,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-        ids.append(f"{patient_id}_medication_{med_id}")
+            med_id = medication.get("id", f"medication_{idx}")
+            metadatas.append(
+                {
+                    "patient_id": patient_id,
+                    "resource_type": "MedicationRequest",
+                    "resource_id": med_id,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
+            ids.append(f"{patient_id}_medication_{med_id}")
 
         # Process observations
         obs_sample = patient_data["observations"][:50]
@@ -212,6 +212,17 @@ class EmbeddingPipeline:
             f"Processing {len(obs_sample)} observations (sampled from {len(patient_data["observations"])})..."
         )
         for idx, observation in enumerate(obs_sample):
+            # Skip observations without a value
+            has_value = (
+                observation.get("valueQuantity")
+                or observation.get("valueString")
+                or observation.get("valueCodeableConcept")
+                or observation.get("valueBoolean")
+            )
+
+            if not has_value:
+                continue  # Skip this observation
+
             obs_text = self.processor.process_observation(observation)
             documents.append(obs_text)
 
@@ -237,6 +248,7 @@ class EmbeddingPipeline:
             embeddings.append(embedding)
 
         print("Adding documents to ChromaDB collection...")
+
         self.collection.add(
             documents=documents, embeddings=embeddings, metadatas=metadatas, ids=ids
         )

@@ -1,6 +1,6 @@
 # EHR Data Chatbot with RAG (Epic FHIR)
 
-A production-ready RAG-powered chatbot that integrates with Epic's FHIR API to query patient medical records using natural language.
+A RAG-powered chatbot that integrates with Epic's FHIR API to query patient medical records using natural language.
 
 ## Key Features
 
